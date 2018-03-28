@@ -470,7 +470,11 @@
           p1.y
         );
 
-        var rotation = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+		var rotation = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+		if (this.attrs.glyphRotation) {
+			rotation += this.attrs.glyphRotation*Math.PI/180;
+		}
+
         this.glyphInfo.push({
           transposeX: midpoint.x,
           transposeY: midpoint.y,
