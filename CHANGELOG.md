@@ -13,10 +13,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Changes
 
 * Fixed flow for `contextmenu` event. Not it will be triggered on shapes too
+* `find()` method for Containers can use a function as a parameter
 
 ## Fixed
 
 * some bugs fixes for `group.getClientRect()`
+* `Konva.Arrow` will not draw dash for pointers
 
 ## [2.0.2][2018-03-15]
 
