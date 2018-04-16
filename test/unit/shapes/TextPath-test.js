@@ -19,6 +19,7 @@ suite('TextPath', function() {
       fontSize: '24',
       fontFamily: 'Arial',
       text: "The quick brown fox jumped over the lazy dog's back",
+	  glyphDirection: 180,
       data: c
     });
     textpath.on('mouseover', function() {
