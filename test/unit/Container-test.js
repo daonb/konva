@@ -31,7 +31,7 @@ suite('Container', function() {
     var layer = new Konva.Layer();
     stage.add(layer);
     var circle = new Konva.Circle({
-      fill: 'green',
+      fill: 'black',
       x: 50,
       y: 50,
       radius: 40
@@ -49,7 +49,7 @@ suite('Container', function() {
     var rect = new Konva.Rect({
       x: 10,
       y: 10,
-      fill: 'green',
+      fill: 'black',
       width: 200,
       height: 200
     });
@@ -291,7 +291,7 @@ suite('Container', function() {
   });
 
   // ======================================================
-  test('select shape by id and name with findOne', function() {
+  test('select shape with findOne', function() {
     var stage = addStage();
     var layer = new Konva.Layer({
       id: 'myLayer'
@@ -330,6 +330,10 @@ suite('Container', function() {
     assert.equal(node, undefined, 'node should be undefined');
     node = stage.findOne('#myLayer');
     assert.equal(node, layer, 'node type should be Layer');
+    node = stage.findOne(function(node) {
+      return node.getType() === 'Shape';
+    });
+    assert.equal(node, circle, 'findOne should work with functions');
   });
 
   // ======================================================
@@ -921,7 +925,7 @@ suite('Container', function() {
       stroke: 'black',
       strokeWidth: 1,
       fill: 'orange',
-      fontSize: '18',
+      fontSize: 18,
       fontFamily: 'Arial',
       text: "The quick brown fox jumped over the lazy dog's back",
       data: 'M 10,10 300,150 550,150'
@@ -2219,7 +2223,7 @@ suite('Container', function() {
     });
   });
 
-  test('getClientRect - test empty group with invisible child', function() {
+  test('getClientRect - test group with invisible child', function() {
     var stage = addStage();
     var layer = new Konva.Layer();
     stage.add(layer);
@@ -2227,6 +2231,8 @@ suite('Container', function() {
       x: 10,
       y: 10
     });
+    layer.add(group);
+    layer.draw();
     group.add(
       new Konva.Rect({
         x: 0,
@@ -2252,11 +2258,73 @@ suite('Container', function() {
     });
   });
 
-  test.skip('getClientRect - test layer', function() {
+  test('getClientRect - test group with invisible child inside invisible parent', function() {
+    var stage = addStage();
+    var layer = new Konva.Layer({
+      visible: false
+    });
+    stage.add(layer);
+    var group = new Konva.Group({
+      x: 10,
+      y: 10
+    });
+    layer.add(group);
+    layer.draw();
+    group.add(
+      new Konva.Rect({
+        x: 0,
+        y: 0,
+        width: 50,
+        height: 50
+      })
+    );
+    group.add(
+      new Konva.Rect({
+        x: 400,
+        y: 400,
+        width: 50,
+        height: 50,
+        visible: false
+      })
+    );
+    assert.deepEqual(group.getClientRect(), {
+      x: 10,
+      y: 10,
+      width: 50,
+      height: 50
+    });
+  });
+
+  test('get client rect with deep nested hidden shape 2', function() {
+    var layer = new Konva.Layer();
+    var group = new Konva.Group({
+      visible: false,
+      x: 100,
+      y: 40
+    });
+
+    var rect = new Konva.Rect({
+      height: 100,
+      width: 100,
+      fill: 'red'
+    });
+    group.add(rect);
+    layer.add(group);
+
+    var clientRect = layer.getClientRect();
+
+    assert.deepEqual(clientRect, {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0
+    });
+  });
+
+  test('getClientRect - test layer', function() {
     var stage = addStage();
     var layer = new Konva.Layer();
-    var group1 = new Konva.Group();
-    var group2 = new Konva.Group();
+    var group = new Konva.Group();
 
     var rect = new Konva.Rect({
       x: 50,
@@ -2266,10 +2334,48 @@ suite('Container', function() {
       fill: 'red'
     });
 
-    group1.add(rect);
-    layer.add(group1);
-    layer.add(group2);
+    group.add(rect);
+    layer.add(group);
     stage.add(layer);
+
+    assert.deepEqual(layer.getClientRect(), {
+      x: 50,
+      y: 100,
+      width: 200,
+      height: 75
+    });
+  });
+
+  test('getClientRect - nested group with a hidden shapes', function() {
+    var stage = addStage();
+
+    var layer = new Konva.Layer();
+    stage.add(layer);
+
+    var group1 = new Konva.Group();
+    layer.add(group1);
+
+    var rect = new Konva.Rect({
+      x: 50,
+      y: 100,
+      width: 200,
+      height: 75,
+      fill: 'red'
+    });
+    group1.add(rect);
+
+    var group2 = new Konva.Group();
+    layer.add(group2);
+
+    var rect2 = new Konva.Rect({
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 75,
+      fill: 'red',
+      visible: false
+    });
+    group1.add(rect2);
 
     assert.deepEqual(layer.getClientRect(), {
       x: 50,

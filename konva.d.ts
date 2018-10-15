@@ -5,6 +5,60 @@ declare namespace Konva {
   var isDragReady: () => boolean;
   var DD: any;
 
+  export interface KonvaEventObject<E> {
+    target: Konva.Shape;
+    evt: E;
+    currentTarget: Konva.Node;
+    cancelBubble: boolean;
+  }
+
+  type HandlerFunc<E = Event> = (
+    e: KonvaEventObject<E>
+  ) => void;
+
+  enum KonvaNodeEvent {
+    mouseover = 'mouseover',
+    mouseout = 'mouseout',
+    mousemove = 'mousemove',
+    mouseleave = 'mouseleave',
+    mouseenter = 'mouseenter',
+    mousedown = 'mousedown',
+    mouseup = 'mouseup',
+    wheel = 'wheel',
+    contextmenu = 'contextmenu',
+    click = 'click',
+    dblclick = 'dblclick',
+    touchstart = 'touchstart',
+    touchmove = 'touchmove',
+    touchend = 'touchend',
+    tap = 'tap',
+    dbltap = 'dbltap',
+    dragstart = 'dragstart',
+    dragmove = 'dragmove',
+    dragend = 'dragend'
+  }
+
+  enum KonvaStageEvent {
+    contentMouseover = 'contentMouseover',
+    contentMousemove = 'contentMousemove',
+    contentMouseout = 'contentMouseout',
+    contentMousedown = 'contentMousedown',
+    contentMouseup = 'contentMouseup',
+    contentWheel = 'contentWheel',
+    contentContextmenu = 'contentContextmenu',
+    contentClick = 'contentClick',
+    contentDblclick = 'contentDblclick',
+    contentTouchstart = 'contentTouchstart',
+    contentTouchmove = 'contentTouchmove',
+    contentTouchend = 'contentTouchend',
+    contentTap = 'contentTap',
+    contentDblTap = 'contentDblTap'
+  }
+
+  type KonvaEvent = KonvaNodeEvent & KonvaStageEvent;
+
+  type KonvaEventString = KonvaEvent | string;
+
   type globalCompositeOperationType =
     | ''
     | 'source-over'
@@ -39,23 +93,26 @@ declare namespace Konva {
     static getRGB(color: string): string;
   }
 
+  type EasingFn = (elapsed: number, startValue: number, diff: number, duration: number) => number;
+  type ElasticEasingFn = (elapsed: number, startValue: number, diff: number, duration: number, a?: number, p?: number) => number;
+
   export class Easings {
-    static BackEaseIn(): any;
-    static BackEaseInOut(): any;
-    static BackEaseOut(): any;
-    static BounceEaseIn(): any;
-    static BounceEaseInOut(): any;
-    static BounceEaseOut(): any;
-    static EaseIn(): any;
-    static EaseInOut(): any;
-    static EaseOut(): any;
-    static ElasticEaseIn(): any;
-    static ElasticEaseInOut(): any;
-    static ElasticEaseOut(): any;
-    static Linear(): any;
-    static StrongEaseIn(): any;
-    static StrongEaseInOut(): any;
-    static StrongEaseOut(): any;
+    static BackEaseIn: EasingFn;
+    static BackEaseInOut: EasingFn;
+    static BackEaseOut: EasingFn;
+    static BounceEaseIn: EasingFn;
+    static BounceEaseInOut: EasingFn;
+    static BounceEaseOut: EasingFn;
+    static EaseIn: EasingFn;
+    static EaseInOut: EasingFn;
+    static EaseOut: EasingFn;
+    static ElasticEaseIn: ElasticEasingFn;
+    static ElasticEaseInOut: ElasticEasingFn;
+    static ElasticEaseOut: ElasticEasingFn;
+    static Linear: EasingFn;
+    static StrongEaseIn: EasingFn;
+    static StrongEaseInOut: EasingFn;
+    static StrongEaseOut: EasingFn;
   }
 
   class Filter {}
@@ -93,6 +150,47 @@ declare namespace Konva {
     stop(): Animation;
   }
 
+  interface KonvaNodeEventMap extends KonvaStageEventMap {
+    mouseover: MouseEvent;
+    mouseout: MouseEvent;
+    mousemove: MouseEvent;
+    mouseleave: MouseEvent;
+    mouseenter: MouseEvent;
+    mousedown: MouseEvent;
+    mouseup: MouseEvent;
+    wheel: WheelEvent;
+    contextmenu: PointerEvent;
+    click: MouseEvent;
+    dblclick: MouseEvent;
+    touchstart: TouchEvent;
+    touchmove: TouchEvent;
+    touchend: TouchEvent;
+    tap: Event;
+    dbltap: Event;
+    dragstart: DragEvent;
+    dragmove: DragEvent;
+    dragend: DragEvent;
+    dragover: DragEvent;
+    drop: DragEvent;
+  }
+
+  interface KonvaStageEventMap {
+    contentMouseover: MouseEvent;
+    contentMousemove: MouseEvent;
+    contentMouseout: MouseEvent;
+    contentMousedown: MouseEvent;
+    contentMouseup: MouseEvent;
+    contentWheel: WheelEvent;
+    contentContextmenu: PointerEvent;
+    contentClick: MouseEvent;
+    contentDblclick: MouseEvent;
+    contentTouchstart: TouchEvent;
+    contentTouchmove: TouchEvent;
+    contentTouchend: TouchEvent;
+    contentTap: Event;
+    contentDblTap: Event;
+  }
+
   interface NodeConfig {
     x?: number;
     y?: number;
@@ -125,7 +223,17 @@ declare namespace Konva {
     height?: number;
   }
 
+  interface ToCanvasConfig extends SizeConfig {
+    callback: Function;
+  }
+
   interface ToDataURLConfig extends SizeConfig {
+    mimeType?: string;
+    quality?: number;
+    pixelRatio?: number;
+  }
+
+  interface ToImageConfig extends SizeConfig {
     callback: Function;
     mimeType?: string;
     quality?: number;
@@ -188,17 +296,21 @@ declare namespace Konva {
     ): Node[];
     fire(eventType: string, evt?: any, bubble?: boolean): this;
     getAbsoluteOpacity(): number;
-    getAbsolutePosition(): Vector2d;
-    getAbsoluteTransform(): Transform;
+    getAbsolutePosition(top?: Container): Vector2d;
+    getAbsoluteTransform(top?: Container): Transform;
     getAbsoluteZIndex(): number;
+    getAbsoluteScale(): Vector2d;
     getAncestors(): Collection;
     getAttr(attr: string): any;
     getAttrs(): NodeConfig;
     // CHECK
     getCanvas(): Canvas;
     getClassName(): string;
-    getClientRect(): SizeConfig;
-    getContext(): Context;
+    getClientRect(attrs?: {
+      skipTransform?: boolean;
+      relativeTo?: object;
+    }): SizeConfig;
+    getContent(): HTMLDivElement;
     getDepth(): number;
     getHeight(): number;
     getHitCanvas(): Canvas;
@@ -247,14 +359,20 @@ declare namespace Konva {
     name(name: string): this;
     noise(): number;
     noise(noise: number): this;
-    off(evtStr: string): this;
+    off(evtStr: KonvaEventString): this;
     offset(): Vector2d;
     offset(offset: Vector2d): this;
     offsetX(): number;
     offsetX(offsetX: number): this;
     offsetY(): number;
     offsetY(offsetY: number): this;
-    on(evtStr: string, handler: Function): this;
+    on<K extends keyof KonvaNodeEventMap>(
+      evtStr: K,
+      handler: (
+        e: KonvaEventObject<KonvaNodeEventMap[K]>
+      ) => void
+    ): this;
+    on(evtStr: KonvaEventString, handler: HandlerFunc): this;
     opacity(): number;
     opacity(opacity: number): this;
     pixelSize(): number;
@@ -295,8 +413,9 @@ declare namespace Konva {
     threshold(): number;
     threshold(threshold: number): this;
     to(params: any): void;
+    toCanvas(config: ToCanvasConfig): HTMLCanvasElement;
     toDataURL(config: ToDataURLConfig): string;
-    toImage(config: ToDataURLConfig): HTMLImageElement;
+    toImage(config: ToImageConfig): HTMLImageElement;
     toJSON(): string;
     toObject(): any;
     transformsEnabled(): string;
@@ -342,8 +461,8 @@ declare namespace Konva {
     clipFunc(): (ctx: CanvasRenderingContext2D) => void;
     clipFunc(ctx: CanvasRenderingContext2D | undefined | null): void;
     destroyChildren(): void;
-    find(selector?: string | ((Node) => boolean)): Collection;
-    findOne<T extends Node>(selector: string): T;
+    find(selector?: string | ((node: Node) => boolean)): Collection;
+    findOne<T extends Node>(selector: string | ((node: Node) => boolean)): T;
     getAllIntersections(pos: Vector2d): Shape[];
     hasChildren(): boolean;
     removeChildren(): void;
@@ -387,9 +506,8 @@ declare namespace Konva {
     strokeEnabled?: boolean;
     lineJoin?: string;
     lineCap?: string;
-    sceneFunc?: (con: Context) => void;
-    hitFunc?: (con: Context) => void;
-    drawFunc?: (con: Context) => void;
+    sceneFunc?: (con: Context, shape: Shape) => void;
+    hitFunc?: (con: Context, shape: Shape) => void;
     shadowColor?: string;
     shadowBlur?: number;
     shadowOffset?: Vector2d;
@@ -397,6 +515,7 @@ declare namespace Konva {
     shadowOffsetY?: number;
     shadowOpacity?: number;
     shadowEnabled?: boolean;
+    shadowForStrokeEnabled?: boolean;
     dash?: number[];
     dashEnabled?: boolean;
     perfectDrawEnabled?: boolean;
@@ -408,6 +527,7 @@ declare namespace Konva {
     dash(dash: number[]): this;
     dashEnabled(): boolean;
     dashEnabled(dashEnabled: boolean): this;
+    drawHit(canvas?: Canvas, top?: Container, caching?: boolean): this;
     drawHitFromCache(alphaThreshold: number): this;
     fill(): string;
     fill(fill: string): this;
@@ -469,22 +589,27 @@ declare namespace Konva {
     fillPatternY(y: number): this;
     fillPriority(): string;
     fillPriority(priority: string): this;
+    getSelfRect(): SizeConfig;
     hasFill(): boolean;
     hasShadow(): boolean;
     hasStroke(): boolean;
     hitFunc(): Function;
-    hitFunc(func: Function): this;
+    hitFunc(func: (con: Context, shape: Shape) => {}): this;
     intersects(point: Vector2d): boolean;
     lineCap(): string;
     lineCap(lineCap: string): this;
     lineJoin(): string;
     lineJoin(lineJoin: string): this;
+    perfectDrawEnabled(): boolean;
+    perfectDrawEnabled(perfectDrawEnabled: boolean): this;
     sceneFunc(): Function;
-    sceneFunc(func: (con: Context) => {}): this;
+    sceneFunc(func: (con: Context, shape: Shape) => {}): this;
     shadowColor(): string;
     shadowColor(shadowColor: string): this;
     shadowEnabled(): boolean;
     shadowEnabled(shadowEnabled: boolean): this;
+    shadowForStrokeEnabled(): boolean;
+    shadowForStrokeEnabled(shadowForStrokeEnabled: boolean): this;
     shadowOffset(): Vector2d;
     shadowOffset(shadowOffset: Vector2d): this;
     shadowOffsetX(): number;
@@ -796,6 +921,7 @@ declare namespace Konva {
     points: number[];
     tension?: number;
     closed?: boolean;
+    bezier?: boolean;
   }
 
   class Line extends Shape {
@@ -814,6 +940,7 @@ declare namespace Konva {
     closed?: boolean;
     pointerLength?: number;
     pointerWidth?: number;
+    pointerAtBeginning?: boolean;
   }
 
   class Arrow extends Shape {
@@ -847,6 +974,7 @@ declare namespace Konva {
     animations: any;
     frameIndex?: number;
     image: HTMLImageElement;
+    frameRate?: number;
   }
 
   class Sprite extends Shape {
@@ -871,9 +999,11 @@ declare namespace Konva {
     fontSize?: number;
     fontStyle?: string;
     align?: string;
+    verticalAlign?: string;
     padding?: number;
     lineHeight?: number;
     wrap?: string;
+    ellipsis?: boolean;
   }
 
   class Text extends Shape {
@@ -892,6 +1022,8 @@ declare namespace Konva {
     fontVariant(fontVariant: string): this;
     align(): string;
     align(align: string): this;
+    verticalAlign(): string;
+    verticalAlign(verticalAlign: string): this;
     padding(): number;
     padding(padding: number): this;
     lineHeight(): number;
@@ -1008,12 +1140,13 @@ declare namespace Konva {
     fontStyle(fontStyle: string): this;
   }
 
-  class Collection {
-    [i: number]: any;
-    static toCollection(arr: any[]): Collection;
-    each(f: (el: Node) => void): void;
-    toArray(): any[];
+  class Collection<T extends Node = Node> {
+    [i: number]: T;
+    each(f: (el: T) => void): void;
+    toArray(): T[];
     length: number;
+
+    static toCollection<T extends Node = Node>(arr: T[]): Collection<T>;
   }
 
   class Transform {
@@ -1034,11 +1167,20 @@ declare namespace Konva {
     resizeEnabled?: boolean;
     rotateEnabled?: boolean;
     rotationSnaps?: Array<number>;
-    rotateHandlerOffset?: number;
-    lineEnabled?: number;
+    rotateAnchorOffset?: number;
+    borderEnabled?: boolean;
+    borderStroke?: string;
+    borderStrokeWidth?: number;
+    borderDash?: Array<number>;
+    anchorFill?: string;
+    anchorStroke?: string;
+    anchorStrokeWidth?: number;
+    anchorSize?: number;
     keepRatio?: boolean;
-    enabledHandlers?: Array<string>;
+    centeredScaling?: boolean;
+    enabledAnchors?: Array<string>;
     node?: Rect;
+    boundBoxFunc?: (oldBox: SizeConfig, newBox: SizeConfig) => SizeConfig;
   }
 
   class Transformer extends Container {
@@ -1048,7 +1190,37 @@ declare namespace Konva {
     getNode(): Node;
     detach(): void;
     forceUpdate(): void;
-    update(): void;
+
+    keepRatio(): boolean;
+    keepRatio(enabled: boolean): this;
+    keepRatio(): boolean;
+    keepRatio(enabled: boolean): this;
+    centeredScaling(): boolean;
+    centeredScaling(enabled: boolean): this;
+    rotateEnabled(): boolean;
+    rotateEnabled(enabled: boolean): this;
+    rotationSnaps(): Array<number>;
+    rotationSnaps(snaps: Array<number>): this;
+    rotateAnchorOffset(): number;
+    rotateAnchorOffset(offset: number): this;
+    borderEnabled(): boolean;
+    borderEnabled(enabled: boolean): this;
+    borderStroke(): string;
+    borderStroke(color: string): this;
+    borderStrokeWidth(): number;
+    borderStrokeWidth(width: number): this;
+    borderDash(): Array<number>;
+    borderDash(snaps: Array<number>): this;
+    anchorFill(): string;
+    anchorFill(color: string): this;
+    anchorStroke(): string;
+    anchorStroke(color: string): this;
+    anchorStrokeWidth(): number;
+    anchorStrokeWidth(width: number): this;
+    anchorSize(): number;
+    anchorSize(width: number): this;
+    enabledAnchors(): Array<string>;
+    enabledAnchors(names: Array<string>): this;
   }
 
   interface Vector2d {

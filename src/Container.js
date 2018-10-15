@@ -181,31 +181,42 @@
      * });
      */
     find: function(selector) {
-      var retArr = [];
-
-      if (typeof selector === 'string') {
-        retArr = this._findByString(selector);
-      } else if (typeof selector === 'function') {
-        retArr = this._findByFunction(selector);
-      }
-
-      return Konva.Collection.toCollection(retArr);
+      // protecting _generalFind to prevent user from accidentally adding
+      // second argument and getting unexpected `findOne` result
+      return this._generalFind(selector, false);
     },
     /**
      * return a first node from `find` method
      * @method
      * @memberof Konva.Container.prototype
-     * @param {String} selector
-     * @returns {Konva.Node}
+     * @param {String | Function} selector
+     * @returns {Konva.Node | Undefined}
      * @example
      * // select node with id foo
      * var node = stage.findOne('#foo');
      *
      * // select node with name bar inside layer
      * var nodes = layer.findOne('.bar');
+     *
+     * // select the first node to return true in a function
+     * var node = stage.findOne(node => {
+     *  return node.getType() === 'Shape'
+     * })
      */
     findOne: function(selector) {
-      return this.find(selector)[0];
+      var result = this._generalFind(selector, true);
+      return result.length > 0 ? result[0] : undefined;
+    },
+    _generalFind: function(selector, findOne) {
+      var retArr = [];
+
+      if (typeof selector === 'string') {
+        retArr = this._findByString(selector, findOne);
+      } else if (typeof selector === 'function') {
+        retArr = this._findByFunction(selector, findOne);
+      }
+
+      return Konva.Collection.toCollection(retArr);
     },
     _findByString: function(selector) {
       var retArr = [],
@@ -222,15 +233,13 @@
       for (n = 0; n < len; n++) {
         sel = selectorArr[n];
         if (!Konva.Util.isValidSelector(sel)) {
-          Konva.Util.warn(
+          var message =
             'Selector "' +
-              sel +
-              '" is invalid. Allowed selectors examples are "#foo", ".bar" or "Group".'
-          );
-          Konva.Util.warn(
-            'If you have a custom shape with such className, please change it to start with upper letter like "Triangle".'
-          );
-          Konva.Util.warn('Konva is awesome, right?');
+            sel +
+            '" is invalid. Allowed selectors examples are "#foo", ".bar" or "Group".\n' +
+            'If you have a custom shape with such className, please change it to start with upper letter like "Triangle".\n' +
+            'Konva is awesome, right?';
+          Konva.Util.warn(message);
         }
         // id selector
         if (sel.charAt(0) === '#') {
@@ -254,10 +263,16 @@
 
       return retArr;
     },
-    _findByFunction: function(fn) {
+    // (fn: ((Node) => boolean, findOne?: boolean)
+    _findByFunction: function(fn, findOne) {
       var retArr = [];
 
       var addItems = function(el) {
+        // escape function if we've already found one.
+        if (findOne && retArr.length > 0) {
+          return;
+        }
+
         var children = el.getChildren();
         var clen = children.length;
 
@@ -384,7 +399,7 @@
         cachedCanvas = this._cache.canvas,
         cachedSceneCanvas = cachedCanvas && cachedCanvas.scene;
 
-      if (this.isVisible()) {
+      if (this.isVisible() || caching) {
         if (!caching && cachedSceneCanvas) {
           context.save();
           layer._applyTransform(this, context, top);
@@ -403,7 +418,7 @@
         cachedCanvas = this._cache.canvas,
         cachedHitCanvas = cachedCanvas && cachedCanvas.hit;
 
-      if (this.shouldDrawHit(canvas)) {
+      if (this.shouldDrawHit(canvas) || caching) {
         if (layer) {
           layer.clearHitCache();
         }
@@ -479,25 +494,24 @@
 
       var minX, minY, maxX, maxY;
       var selfRect = {
-        x: 0,
-        y: 0,
+        x: Infinity,
+        y: Infinity,
         width: 0,
         height: 0
       };
       var that = this;
       this.children.each(function(child) {
         // skip invisible children
-        if (!child.isVisible()) {
+        if (!child.getVisible()) {
           return;
         }
 
         var rect = child.getClientRect({ relativeTo: that });
 
         // skip invisible children (like empty groups)
-        // or don't skip... hmmm...
-        // if (rect.width === 0 && rect.height === 0) {
-        //     return;
-        // }
+        if (rect.width === 0 && rect.height === 0) {
+          return;
+        }
 
         if (minX === undefined) {
           // initial value for first child
@@ -518,7 +532,7 @@
       var hasVisible = false;
       for (var i = 0; i < shapes.length; i++) {
         var shape = shapes[i];
-        if (shape.isVisible()) {
+        if (shape._isVisible(this)) {
           hasVisible = true;
           break;
         }
@@ -530,6 +544,13 @@
           y: minY,
           width: maxX - minX,
           height: maxY - minY
+        };
+      } else {
+        selfRect = {
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0
         };
       }
 
@@ -575,7 +596,12 @@
    * });
    */
 
-  Konva.Factory.addGetterSetter(Konva.Container, 'clipX');
+  Konva.Factory.addGetterSetter(
+    Konva.Container,
+    'clipX',
+    undefined,
+    Konva.Validators.getNumberValidator()
+  );
   /**
    * get/set clip x
    * @name clipX
@@ -591,7 +617,12 @@
    * container.clipX(10);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Container, 'clipY');
+  Konva.Factory.addGetterSetter(
+    Konva.Container,
+    'clipY',
+    undefined,
+    Konva.Validators.getNumberValidator()
+  );
   /**
    * get/set clip y
    * @name clipY
@@ -607,7 +638,12 @@
    * container.clipY(10);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Container, 'clipWidth');
+  Konva.Factory.addGetterSetter(
+    Konva.Container,
+    'clipWidth',
+    undefined,
+    Konva.Validators.getNumberValidator()
+  );
   /**
    * get/set clip width
    * @name clipWidth
@@ -623,7 +659,12 @@
    * container.clipWidth(100);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Container, 'clipHeight');
+  Konva.Factory.addGetterSetter(
+    Konva.Container,
+    'clipHeight',
+    undefined,
+    Konva.Validators.getNumberValidator()
+  );
   /**
    * get/set clip height
    * @name clipHeight
