@@ -180,12 +180,9 @@
         drawBorder = conf.drawBorder || false;
 
       if (!width || !height) {
-        // make throw async, because we don't need to stop funcion
-        setTimeout(function() {
-          Konva.Util.throw(
-            'Width or height of caching configuration equals 0. Caching is ignored.'
-          );
-        });
+        Konva.Util.error(
+          'Can not cache the node. Width or height of the node equals 0. Caching is skipped.'
+        );
         return;
       }
 
@@ -597,7 +594,7 @@
       });
     },
     /**
-     * remove self from parent, but don't destroy
+     * remove self from parent, but don't destroy. You can reuse node later.
      * @method
      * @memberof Konva.Node.prototype
      * @returns {Konva.Node}
@@ -624,7 +621,7 @@
       return this;
     },
     /**
-     * remove and destroy self
+     * remove and destroy a node. Kill it forever! You should not reuse node after destroy().
      * @method
      * @memberof Konva.Node.prototype
      * @example
@@ -763,36 +760,41 @@
       }
     },
     /**
-         * determine if node is visible by taking into account ancestors.
-         *
-         * Parent    | Self      | isVisible
-         * visible   | visible   |
-         * ----------+-----------+------------
-         * T         | T         | T
-         * T         | F         | F
-         * F         | T         | T
-         * F         | F         | F
-         * ----------+-----------+------------
-         * T         | I         | T
-         * F         | I         | F
-         * I         | I         | T
+     * determine if node is visible by taking into account ancestors.
+     *
+     * Parent    | Self      | isVisible
+     * visible   | visible   |
+     * ----------+-----------+------------
+     * T         | T         | T
+     * T         | F         | F
+     * F         | T         | T
+     * F         | F         | F
+     * ----------+-----------+------------
+     * T         | I         | T
+     * F         | I         | F
+     * I         | I         | T
 
-         * @method
-         * @memberof Konva.Node.prototype
-         * @returns {Boolean}
-         */
+      * @method
+      * @memberof Konva.Node.prototype
+      * @returns {Boolean}
+      */
     isVisible: function() {
       return this._getCache(VISIBLE, this._isVisible);
     },
-    _isVisible: function() {
+    _isVisible: function(relativeTo) {
       var visible = this.getVisible(),
         parent = this.getParent();
 
+      if (relativeTo === parent && visible === 'inherit') {
+        return true;
+      } else if (relativeTo === parent) {
+        return visible;
+      }
       // the following conditions are a simplification of the truth table above.
       // please modify carefully
       if (visible === 'inherit') {
         if (parent) {
-          return parent.isVisible();
+          return parent._isVisible(relativeTo);
         } else {
           return true;
         }
@@ -807,10 +809,11 @@
      * @memberof Konva.Node.prototype
      * @returns {Boolean}
      */
-    shouldDrawHit: function(canvas) {
+    shouldDrawHit: function() {
       var layer = this.getLayer();
+
       return (
-        (canvas && canvas.isCache) ||
+        (!layer && this.isListening() && this.isVisible()) ||
         (layer &&
           layer.hitGraphEnabled() &&
           this.isListening() &&
@@ -1052,7 +1055,7 @@
       // func with this because it will be the only node
       if (top && top._id === this._id) {
         func(this);
-        return true;
+        return;
       }
 
       family.unshift(this);
@@ -1231,7 +1234,7 @@
 
       for (key in attrs) {
         val = attrs[key];
-        getter = this[key];
+        getter = typeof this[key] === 'function' && this[key];
         // remove attr value so that we can extract the default value from the getter
         delete attrs[key];
         defaultValue = getter ? getter.call(this) : null;
@@ -1427,19 +1430,19 @@
       }
     },
     _getAbsoluteTransform: function(top) {
-      var at = new Konva.Transform(),
-        transformsEnabled,
-        trans;
+      var at = new Konva.Transform();
 
       // start with stage and traverse downwards to self
       this._eachAncestorReverse(function(node) {
-        transformsEnabled = node.transformsEnabled();
-        trans = node.getTransform();
+        var transformsEnabled = node.transformsEnabled();
 
         if (transformsEnabled === 'all') {
-          at.multiply(trans);
+          at.multiply(node.getTransform());
         } else if (transformsEnabled === 'position') {
-          at.translate(node.x(), node.y());
+          at.translate(
+            node.getX() - node.getOffsetX(),
+            node.getY() - node.getOffsetY()
+          );
         }
       }, top);
       return at;
@@ -1582,17 +1585,16 @@
     _toKonvaCanvas: function(config) {
       config = config || {};
 
+      var box = this.getClientRect();
+
       var stage = this.getStage(),
-        x = config.x || 0,
-        y = config.y || 0,
+        x = config.x !== undefined ? config.x : box.x,
+        y = config.y !== undefined ? config.y : box.y,
         pixelRatio = config.pixelRatio || 1,
         canvas = new Konva.SceneCanvas({
-          width:
-            config.width || this.getWidth() || (stage ? stage.getWidth() : 0),
+          width: config.width || box.width || (stage ? stage.getWidth() : 0),
           height:
-            config.height ||
-            this.getHeight() ||
-            (stage ? stage.getHeight() : 0),
+            config.height || box.height || (stage ? stage.getHeight() : 0),
           pixelRatio: pixelRatio
         }),
         context = canvas.getContext();
@@ -1641,14 +1643,18 @@
      * @param {Number} [config.quality] jpeg quality.  If using an "image/jpeg" mimeType,
      *  you can specify the quality from 0 to 1, where 0 is very poor quality and 1
      *  is very high quality
-     * @paremt {Number} [config.pixelRatio] pixelRatio of ouput image url. Default is 1
+     * @param {Number} [config.pixelRatio] pixelRatio of output image url. Default is 1
      * @returns {String}
      */
     toDataURL: function(config) {
       config = config || {};
       var mimeType = config.mimeType || null,
         quality = config.quality || null;
-      return this._toKonvaCanvas(config).toDataURL(mimeType, quality);
+      var url = this._toKonvaCanvas(config).toDataURL(mimeType, quality);
+      if (config.callback) {
+        config.callback(url);
+      }
+      return url;
     },
     /**
      * converts node into an image.  Since the toImage
@@ -1679,8 +1685,10 @@
       if (!config || !config.callback) {
         throw 'callback required for toImage method config argument';
       }
+      var callback = config.callback;
+      delete config.callback;
       Konva.Util._getImage(this.toDataURL(config), function(img) {
-        config.callback(img);
+        callback(img);
       });
     },
     setSize: function(size) {
@@ -1879,7 +1887,8 @@
     _setAttr: function(key, val) {
       var oldVal;
       oldVal = this.attrs[key];
-      if (oldVal === val) {
+      var same = oldVal === val;
+      if (same && !Konva.Util.isObject(val)) {
         return;
       }
       if (val === undefined || val === null) {
@@ -1986,7 +1995,7 @@
    *  shape drawing functions, images, or event handlers (this would make the
    *  serialized object huge).  If your app uses custom shapes, images, and
    *  event handlers (it probably does), then you need to select the appropriate
-   *  shapes after loading the stage and set these properties via on(), setDrawFunc(),
+   *  shapes after loading the stage and set these properties via on(), setSceneFunc(),
    *  and setImage() methods
    * @method
    * @memberof Konva.Node
@@ -2046,7 +2055,12 @@
    * });
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'x', 0);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'x',
+    0,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set x position
@@ -2063,7 +2077,12 @@
    * node.x(5);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'y', 0);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'y',
+    0,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set y position
@@ -2083,7 +2102,8 @@
   Konva.Factory.addGetterSetter(
     Konva.Node,
     'globalCompositeOperation',
-    'source-over'
+    'source-over',
+    Konva.Validators.getStringValidator()
   );
 
   /**
@@ -2100,7 +2120,12 @@
    * // set globalCompositeOperation
    * shape.globalCompositeOperation('source-in');
    */
-  Konva.Factory.addGetterSetter(Konva.Node, 'opacity', 1);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'opacity',
+    1,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set opacity.  Opacity values range from 0 to 1.
@@ -2158,7 +2183,12 @@
    * node.id('foo');
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'rotation', 0);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'rotation',
+    0,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set rotation in degrees
@@ -2197,7 +2227,12 @@
    * });
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'scaleX', 1);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'scaleX',
+    1,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set scale x
@@ -2214,7 +2249,12 @@
    * node.scaleX(2);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'scaleY', 1);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'scaleY',
+    1,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set scale y
@@ -2253,7 +2293,12 @@
    * });
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'skewX', 0);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'skewX',
+    0,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set skew x
@@ -2270,7 +2315,12 @@
    * node.skewX(3);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'skewY', 0);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'skewY',
+    0,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set skew y
@@ -2308,7 +2358,12 @@
    * });
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'offsetX', 0);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'offsetX',
+    0,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set offset x
@@ -2325,7 +2380,12 @@
    * node.offsetX(3);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'offsetY', 0);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'offsetY',
+    0,
+    Konva.Validators.getNumberValidator()
+  );
 
   /**
    * get/set offset y
@@ -2342,7 +2402,11 @@
    * node.offsetY(3);
    */
 
-  Konva.Factory.addSetter(Konva.Node, 'dragDistance');
+  Konva.Factory.addSetter(
+    Konva.Node,
+    'dragDistance',
+    Konva.Validators.getNumberValidator()
+  );
   Konva.Factory.addOverloadedGetterSetter(Konva.Node, 'dragDistance');
 
   /**
@@ -2363,7 +2427,11 @@
    * Konva.dragDistance = 3;
    */
 
-  Konva.Factory.addSetter(Konva.Node, 'width', 0);
+  Konva.Factory.addSetter(
+    Konva.Node,
+    'width',
+    Konva.Validators.getNumberValidator()
+  );
   Konva.Factory.addOverloadedGetterSetter(Konva.Node, 'width');
   /**
    * get/set width
@@ -2380,7 +2448,11 @@
    * node.width(100);
    */
 
-  Konva.Factory.addSetter(Konva.Node, 'height', 0);
+  Konva.Factory.addSetter(
+    Konva.Node,
+    'height',
+    Konva.Validators.getNumberValidator()
+  );
   Konva.Factory.addOverloadedGetterSetter(Konva.Node, 'height');
   /**
    * get/set height
@@ -2397,7 +2469,18 @@
    * node.height(100);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'listening', 'inherit');
+  Konva.Factory.addGetterSetter(Konva.Node, 'listening', 'inherit', function(
+    val
+  ) {
+    var isValid = val === true || val === false || val === 'inherit';
+    if (!isValid) {
+      Konva.Util.warn(
+        val +
+          ' is a not valid value for "listening" attribute. The value may be true, false or "inherit".'
+      );
+    }
+    return val;
+  });
   /**
    * get/set listenig attr.  If you need to determine if a node is listening or not
    *   by taking into account its parents, use the isListening() method
@@ -2440,11 +2523,14 @@
    * shape.preventDefault(false);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'preventDefault', true);
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'preventDefault',
+    true,
+    Konva.Validators.getBooleanValidator()
+  );
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'filters', undefined, function(
-    val
-  ) {
+  Konva.Factory.addGetterSetter(Konva.Node, 'filters', null, function(val) {
     this._filterUpToDate = false;
     return val;
   });
@@ -2472,7 +2558,18 @@
    * ]);
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'visible', 'inherit');
+  Konva.Factory.addGetterSetter(Konva.Node, 'visible', 'inherit', function(
+    val
+  ) {
+    var isValid = val === true || val === false || val === 'inherit';
+    if (!isValid) {
+      Konva.Util.warn(
+        val +
+          ' is a not valid value for "visible" attribute. The value may be true, false or "inherit".'
+      );
+    }
+    return val;
+  });
   /**
    * get/set visible attr.  Can be "inherit", true, or false.  The default is "inherit".
    *   If you need to determine if a node is visible or not
@@ -2496,7 +2593,12 @@
    * node.visible('inherit');
    */
 
-  Konva.Factory.addGetterSetter(Konva.Node, 'transformsEnabled', 'all');
+  Konva.Factory.addGetterSetter(
+    Konva.Node,
+    'transformsEnabled',
+    'all',
+    Konva.Validators.getStringValidator()
+  );
 
   /**
    * get/set transforms that are enabled.  Can be "all", "none", or "position".  The default
