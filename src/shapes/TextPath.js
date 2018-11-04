@@ -95,7 +95,10 @@
     _sceneFunc: function(context) {
       context.setAttr('font', this._getContextFont());
       context.setAttr('textBaseline', this.getTextBaseline());
-      context.setAttr('textAlign', 'left');
+      context.setAttr('textAlign',
+                      (this.attrs.glyphRotation >= 120)?'right':'left');
+      context.setAttr('direction', this.attrs.direction);
+
       context.save();
 
       var textDecoration = this.textDecoration();

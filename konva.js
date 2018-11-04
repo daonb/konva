@@ -2,7 +2,7 @@
  * Konva JavaScript Framework v2.4.2
  * http://konvajs.github.io/
  * Licensed under the MIT
- * Date: Fri Oct 12 2018
+ * Date: Sun Nov 04 2018
  *
  * Original work Copyright (C) 2011 - 2013 by Eric Rowell (KineticJS)
  * Modified work Copyright (C) 2014 - present by Anton Lavrenov (Konva)
@@ -17775,7 +17775,10 @@
     _sceneFunc: function(context) {
       context.setAttr('font', this._getContextFont());
       context.setAttr('textBaseline', this.getTextBaseline());
-      context.setAttr('textAlign', 'left');
+      context.setAttr('textAlign',
+                      (this.attrs.glyphRotation >= 120)?'right':'left');
+      context.setAttr('direction', this.attrs.direction);
+
       context.save();
 
       var textDecoration = this.textDecoration();
@@ -18150,7 +18153,11 @@
           p1.y
         );
 
-        var rotation = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+		var rotation = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+		if (this.attrs.glyphRotation) {
+			rotation += this.attrs.glyphRotation * Math.PI / 180;
+		}
+
         this.glyphInfo.push({
           transposeX: midpoint.x,
           transposeY: midpoint.y,
