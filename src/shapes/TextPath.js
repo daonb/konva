@@ -96,9 +96,7 @@
       context.setAttr('font', this._getContextFont());
       context.setAttr('textBaseline', this.getTextBaseline());
       context.setAttr('textAlign',
-                      (this.attrs.glyphRotation >= 120)?'right':'left');
-      context.setAttr('direction', this.attrs.direction);
-
+                      (this.attrs.glyphRotation >= 120) ? 'right' : 'left');
       context.save();
 
       var textDecoration = this.textDecoration();
@@ -473,10 +471,10 @@
           p1.y
         );
 
-		var rotation = Math.atan2(p1.y - p0.y, p1.x - p0.x);
-		if (this.attrs.glyphRotation) {
-			rotation += this.attrs.glyphRotation * Math.PI / 180;
-		}
+        var rotation = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+        if (this.attrs.glyphRotation) {
+            rotation += this.attrs.glyphRotation * Math.PI / 180;
+        }
 
         this.glyphInfo.push({
           transposeX: midpoint.x,
